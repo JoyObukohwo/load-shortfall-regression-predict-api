@@ -1,5 +1,5 @@
-"""
 
+"""
     Helper functions for the pretrained model to be used within our API.
 
     Author: Explore Data Science Academy.
@@ -47,7 +47,7 @@ def _preprocess_data(data):
     # Convert the json string to a python dictionary object
     feature_vector_dict = json.loads(data)
     # Load the dictionary as a Pandas DataFrame.
-    feature_vector_df = pd.DataFrame.from_dict([feature_vector_dict])
+    df = pd.DataFrame.from_dict([feature_vector_dict])
 
     # ---------------------------------------------------------------
     # NOTE: You will need to swap the lines below for your own data
@@ -58,12 +58,42 @@ def _preprocess_data(data):
     # ---------------------------------------------------------------
 
     # ----------- Replace this code with your own preprocessing steps --------
-    predict_vector = feature_vector_df[['Madrid_wind_speed','Bilbao_rain_1h','Valencia_wind_speed']]
+    # Replace null_values with zero
+    df['Valencia_pressure'] = df['Valencia_pressure'].fillna(0)
+    # Extract the numbers from the string
+    df['Valencia_wind_deg'] = df['Valencia_wind_deg'].str.extract('(\d+)')
+    
+    # Transform the numbers to numeric data type
+    df['Valencia_wind_deg'] = pd.to_numeric(df['Valencia_wind_deg'])
+    # Extract the numbers from the string
+    df['Seville_pressure'] = df['Seville_pressure'].str.extract('(\d+)')
+    
+    # Transform the numbers to numeric data type
+    df['Seville_pressure'] = pd.to_numeric(df['Seville_pressure'])
+    # transform to datetime
+    df['time'] = pd.to_datetime(df['time'])
+    
+    # extract features from the time column and insert them at the begining of the dataframe 
+    df.insert(1, 'Year', df['time'].dt.year)
+    df.insert(2, 'Month', df['time'].dt.month)
+    df.insert(4, 'Day', df['time'].dt.day)
+    df.insert(5, 'Weekday', df['time'].dt.weekday + 1)
+    df.insert(6, 'Hour', df['time'].dt.hour)
+    #drop unwanted noise
+    identifiers = ['Unnamed: 0', 'Barcelona_weather_id', 'Madrid_weather_id', 'Seville_weather_id', 'Bilbao_weather_id']
+    multicol_features = ['Madrid_temp_min', 'Seville_temp_min', 'Barcelona_temp_min', 'Bilbao_temp_min', 'Valencia_temp_min', 
+                   'Bilbao_temp_max', 'Madrid_temp_max', 'Barcelona_temp_max', 'Valencia_temp_max', 'Seville_temp_max',
+                   'Seville_clouds_all', 'Bilbao_clouds_all', 'Madrid_clouds_all']
+    one_hourly = ['Bilbao_rain_1h', 'Seville_rain_1h', 'Madrid_rain_1h', 'Barcelona_rain_1h', 'time']
+    df = df.drop(identifiers + multicol_features + one_hourly, axis = 1)
+
+    
     # ------------------------------------------------------------------------
 
-    return predict_vector
+    return df
 
 def load_model(path_to_model:str):
+    
     """Adapter function to load our pretrained model into memory.
 
     Parameters
@@ -77,6 +107,8 @@ def load_model(path_to_model:str):
     -------
     <class: sklearn.estimator>
         The pretrained model loaded into memory.
+      
+        
 
     """
     return pickle.load(open(path_to_model, 'rb'))
